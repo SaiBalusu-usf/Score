@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Cricket Scoreboard - Professional Overlay</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #ffffff 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 10px;
+    }
+
+    .controls {
+      display: none;
+    }
+
+    .refresh-timer {
+      display: none;
+    }
+
+    .scoreboard-overlay {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 95%;
+      max-width: 1200px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 248, 255, 0.95), rgba(219, 234, 254, 0.95));
+      border-radius: 15px;
+      backdrop-filter: blur(15px);
+      border: 2px solid rgba(30, 58, 138, 0.3);
+      box-shadow: 0 10px 30px rgba(30, 58, 138, 0.2);
+      overflow: hidden;
+    }
+
+    .logo-container {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      z-index: 1001;
+    }
+
+    .logo-container img {
+      height: 60px;
+      width: auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .main-score-bar {
+      display: flex;
+      align-items: center;
+      padding: 15px 20px;
+      background: linear-gradient(90deg, rgba(30, 58, 138, 0.1), rgba(59, 130, 246, 0.1), rgba(255, 255, 255, 0.3));
+      position: relative;
+      color: #1e3a8a;
+      border-bottom: 2px solid rgba(30, 58, 138, 0.2);
+    }
+
+    .live-indicator {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: #1e3a8a;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: bold;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+
+    .team-score {
+      flex: 1;
+      text-align: center;
+    }
+
+    .team-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #1e3a8a;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .score-display {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 3px;
+      text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.8);
+      color: #0f172a;
+    }
+
+    .overs-display {
+      font-size: 14px;
+      opacity: 1;
+      color: #374151;
+      font-weight: 500;
+    }
+
+    .vs-divider {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1e3a8a;
+      margin: 0 15px;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .stats-bar {
+      display: flex;
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.4);
+      gap: 20px;
+      border-top: 1px solid rgba(30, 58, 138, 0.1);
+    }
+
+    .stats-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #1e3a8a;
+      margin-bottom: 8px;
+      border-bottom: 2px solid #3b82f6;
+      padding-bottom: 3px;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .player-name {
+      font-weight: bold;
+      flex: 1;
+      color: #0f172a;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .stat-item {
+      background: rgba(30, 58, 138, 0.8);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      min-width: 25px;
+      text-align: center;
+      font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .striker {
+      color: #dc2626;
+      font-weight: bold;
+    }
+
+    .striker::before {
+      content: "★ ";
+      color: #fbbf24;
+    }
+
+    .match-status {
+      text-align: center;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      font-weight: bold;
+      color: #0f172a;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+      border-top: 1px solid rgba(30, 58, 138, 0.1);
+    }
+
+    .batsmen-stats, .bowler-stats {
+      flex: 1;
+    }
+
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+      font-size: 13px;
+    }
+
+    .player-stats {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      font-size: 16px;
+      color: #0f172a;
+      font-weight: 600;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .error {
+      text-align: center;
+      padding: 20px;
+      font-size: 16px;
+      color: #dc2626;
+      font-weight: 600;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .refresh-timer {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px 12px;
+      border-radius: 15px;
+      font-size: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0.7; }
+      to { opacity: 1; }
+    }
+
+    .logo-container, .stats-title, .vs-divider {
+      animation: none !important;
+    }
+
+    @media (max-width: 768px) {
+      .scoreboard-overlay {
+        width: 98%;
+        bottom: 10px;
+      }
+
+      .stats-bar {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .score-display {
+        font-size: 24px;
+      }
+
+      .team-name {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="scoreboard-overlay">
+    <div id="loadingIndicator" class="loading">
+      Loading live cricket data...
+    </div>
+
+    <div id="scoreboardContent" style="display: none;">
+      <div class="logo-container">
+        <img src="icatft20.jpg" alt="ICAT Friendship T20 League Logo">
+      </div>
+      
+      <div class="main-score-bar">
+        <div class="live-indicator">● LIVE</div>
+        
+        <div class="team-score">
+          <div class="team-name" id="battingTeamName">Team 1</div>
+          <div class="score-display" id="battingTeamScore">0/0</div>
+          <div class="overs-display" id="battingTeamOvers">0.0 overs</div>
+        </div>
+        
+        <div class="vs-divider">VS</div>
+        
+        <div class="team-score">
+          <div class="team-name" id="bowlingTeamName">Team 2</div>
+          <div class="score-display" id="bowlingTeamScore">0/0</div>
+          <div class="overs-display" id="bowlingTeamOvers">0.0 overs</div>
+        </div>
+      </div>
+
+      <div class="stats-bar">
+        <div class="batsmen-stats">
+          <div class="stats-title">Current Batsmen</div>
+          <div id="batsmenContainer">
+            <div class="player-row">
+              <span class="player-name">Loading...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bowler-stats">
+          <div class="stats-title">Current Bowler</div>
+          <div id="bowlerContainer">
+            <div class="player-row">
+              <span class="player-name">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="match-status" id="matchStatus">
+        Match in progress...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const CLUB_ID = 862;
+    const REFRESH_INTERVAL = 10000; // 10 seconds
+    let refreshTimer;
+    let lastValidScorecard = null;
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeMatchId();
+      loadMatchData();
+      startAutoRefresh();
+    });
+
+    // Initialize match ID from URL parameter
+    function initializeMatchId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const matchId = urlParams.get('matchId');
+      return matchId ? parseInt(matchId) : 734; // Default match ID
+    }
+
+    // Main function to fetch and process cricket data
+    async function loadMatchData() {
+      try {
+        showLoadingIndicator();
+        
+        const matchId = initializeMatchId();
+        const targetUrl = `https://cricclubs.com/FT20/viewScorecard.do?matchId=${matchId}&clubId=${CLUB_ID}`;
+        
+        const response = await fetch(targetUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml',
+          },
+          credentials: 'omit',
+          mode: 'cors'
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        
+        const html = await response.text();
+        processMatchData(html);
+      } catch (error) {
+        console.error('Error loading match data:', error);
+        handleError(error);
+      }
+    }
+
+    // Process HTML to extract match data
+    function processMatchData(html) {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract match information
+        const teamNames = extractTeamNames(doc);
+        const scores = extractScores(doc);
+        const batsmen = extractBatsmen(doc);
+        const bowler = extractBowler(doc);
+
+        // Create scorecard data object
+        const scorecardData = {
+          battingTeam: teamNames.batting,
+          bowlingTeam: teamNames.bowling,
+          battingScore: scores.batting.score,
+          bowlingScore: scores.bowling.score,
+          battingOvers: scores.batting.overs,
+          bowlingOvers: scores.bowling.overs,
+          batsmen,
+          bowler,
+          timestamp: new Date().toISOString()
+        };
+
+        // Store as last valid scorecard if data is valid
+        if (scores.batting.score !== "0/0") {
+          lastValidScorecard = scorecardData;
+          localStorage.setItem('lastValidScorecard', JSON.stringify(lastValidScorecard));
+        }
+
+        // Update the UI
+        updateUI(scorecardData);
+      } catch (error) {
+        console.error('Error processing match data:', error);
+        useLastValidScorecard();
+      }
+    }
+
+    // Extract team names
+    function extractTeamNames(doc) {
+      const teamElements = doc.querySelectorAll('h3.teamName');
+      const matchTitle = doc.querySelector('div.match-title')?.textContent || '';
+      
+      let battingTeam = "Team 1";
+      let bowlingTeam = "Team 2";
+      
+      // Extract from team sections
+      if (teamElements.length >= 2) {
+        battingTeam = teamElements[1].textContent.trim();
+        bowlingTeam = teamElements[0].textContent.trim();
+      } else if (teamElements.length === 1) {
+        battingTeam = teamElements[0].textContent.trim();
+        // Extract from match title
+        const teams = matchTitle.split('vs');
+        if (teams.length === 2) {
+          bowlingTeam = teams[0].includes(battingTeam) 
+            ? teams[1].split(',')[0].trim() 
+            : teams[0].split(',')[0].trim();
+        }
+      }
+      
+      return { batting: battingTeam, bowling: bowlingTeam };
+    }
+
+    // Extract scores and overs
+    function extractScores(doc) {
+      const teamScores = doc.querySelectorAll('div.teamScore');
+      const scores = {
+        batting: { score: "0/0", overs: "0.0 ov" },
+        bowling: { score: "0/0", overs: "0.0 ov" }
+      };
+      
+      if (teamScores.length >= 2) {
+        // Second innings in progress
+        scores.batting.score = teamScores[1].querySelector('span')?.textContent.trim() || "0/0";
+        scores.batting.overs = extractOvers(teamScores[1]);
+        scores.bowling.score = teamScores[0].querySelector('span')?.textContent.trim() || "0/0";
+        scores.bowling.overs = extractOvers(teamScores[0]);
+      } else if (teamScores.length === 1) {
+        // First innings in progress
+        scores.batting.score = teamScores[0].querySelector('span')?.textContent.trim() || "0/0";
+        scores.batting.overs = extractOvers(teamScores[0]);
+      }
+      
+      return scores;
+    }
+
+    // Helper to extract overs from team score element
+    function extractOvers(teamScoreElement) {
+      const text = teamScoreElement.textContent;
+      const oversMatch = text.match(/\((\d+\.\d+\s*ov)\)/);
+      return oversMatch ? oversMatch[1] + " ov" : "0.0 ov";
+    }
+
+    // Extract batsmen information
+    function extractBatsmen(doc) {
+      const batsmenTables = doc.querySelectorAll('table.table.table-bordered.table-striped');
+      let batsmen = [];
+      
+      for (const table of batsmenTables) {
+        const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+        if (!headers.includes('Batter')) continue;
+        
+        const rows = table.querySelectorAll('tbody tr');
+        for (const row of rows) {
+          const cells = row.querySelectorAll('td');
+          if (cells.length < 7) continue;
+          
+          const name = cells[0].textContent.trim();
+          const runs = cells[1].textContent.trim();
+          const balls = cells[2].textContent.trim();
+          const dismissal = cells[6].textContent.trim();
+          
+          // Only include not-out batsmen (max 2)
+          if (!dismissal && batsmen.length < 2) {
+            batsmen.push({
+              name,
+              runs,
+              balls,
+              isStriker: batsmen.length === 0 // First batsman is striker
+            });
+          }
+        }
+        if (batsmen.length > 0) break;
+      }
+      
+      // Fallback if no batsmen found
+      if (batsmen.length === 0) {
+        batsmen = [
+          { name: "Batter 1", runs: "0", balls: "0", isStriker: true },
+          { name: "Batter 2", runs: "0", balls: "0", isStriker: false }
+        ];
+      }
+      
+      return batsmen;
+    }
+
+    // Extract bowler information
+    function extractBowler(doc) {
+      const bowlingTables = doc.querySelectorAll('table.table.table-bordered.table-striped');
+      let bowler = {
+        name: "Bowler",
+        overs: "0.0",
+        maidens: "0",
+        runs: "0",
+        wickets: "0",
+        economy: "0.00"
+      };
+      
+      for (const table of bowlingTables) {
+        const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+        if (!headers.includes('Bowler')) continue;
+        
+        const rows = table.querySelectorAll('tbody tr');
+        if (rows.length > 0) {
+          const cells = rows[0].querySelectorAll('td');
+          if (cells.length >= 6) {
+            bowler = {
+              name: cells[0].textContent.trim(),
+              overs: cells[1].textContent.trim(),
+              maidens: cells[2].textContent.trim(),
+              runs: cells[3].textContent.trim(),
+              wickets: cells[4].textContent.trim(),
+              economy: cells[5].textContent.trim()
+            };
+          }
+        }
+        break;
+      }
+      
+      return bowler;
+    }
+
+    // Update the UI with beautiful design
+    function updateUI(scorecard) {
+      hideLoadingIndicator();
+      
+      // Update team names
+      document.getElementById('battingTeamName').textContent = scorecard.battingTeam;
+      document.getElementById('bowlingTeamName').textContent = scorecard.bowlingTeam;
+      
+      // Update scores
+      document.getElementById('battingTeamScore').textContent = scorecard.battingScore;
+      document.getElementById('battingTeamOvers').textContent = scorecard.battingOvers;
+      document.getElementById('bowlingTeamScore').textContent = scorecard.bowlingScore;
+      document.getElementById('bowlingTeamOvers').textContent = scorecard.bowlingOvers;
+      
+      // Add animation for live updates
+      animateElements();
+      
+      // Update batsmen
+      const batsmenContainer = document.getElementById('batsmenContainer');
+      batsmenContainer.innerHTML = scorecard.batsmen.map(batsman => `
+        <div class="player-row">
+          <span class="player-name ${batsman.isStriker ? 'striker' : ''}">${batsman.name}</span>
+          <div class="player-stats">
+            <span class="stat-item">${batsman.runs}*</span>
+            <span class="stat-item">${batsman.balls}b</span>
+            <span class="stat-item">SR:${calculateStrikeRate(batsman.runs, batsman.balls)}</span>
+          </div>
+        </div>
+      `).join('');
+      
+      // Update bowler
+      const bowlerContainer = document.getElementById('bowlerContainer');
+      bowlerContainer.innerHTML = `
+        <div class="player-row">
+          <span class="player-name">${scorecard.bowler.name}</span>
+          <div class="player-stats">
+            <span class="stat-item">${scorecard.bowler.overs}ov</span>
+            <span class="stat-item">${scorecard.bowler.maidens}m</span>
+            <span class="stat-item">${scorecard.bowler.runs}r</span>
+            <span class="stat-item">${scorecard.bowler.wickets}w</span>
+            <span class="stat-item">Eco:${scorecard.bowler.economy}</span>
+          </div>
+        </div>
+      `;
+      
+      // Update match status
+      document.getElementById('matchStatus').textContent = 'Match in progress - Live updates every 10 seconds';
+    }
+
+    // Helper function to calculate strike rate
+    function calculateStrikeRate(runs, balls) {
+      const runsNum = parseInt(runs) || 0;
+      const ballsNum = parseInt(balls) || 0;
+      return ballsNum > 0 ? ((runsNum / ballsNum) * 100).toFixed(2) : "0.00";
+    }
+
+    // UI helper functions
+    function showLoadingIndicator() {
+      document.getElementById('loadingIndicator').style.display = 'block';
+      document.getElementById('scoreboardContent').style.display = 'none';
+    }
+
+    function hideLoadingIndicator() {
+      document.getElementById('loadingIndicator').style.display = 'none';
+      document.getElementById('scoreboardContent').style.display = 'block';
+    }
+
+    function animateElements() {
+      const elementsToAnimate = [
+        'battingTeamScore', 'battingTeamOvers',
+        'bowlingTeamScore', 'bowlingTeamOvers'
+      ];
+      
+      elementsToAnimate.forEach(id => {
+        const element = document.getElementById(id);
+        element.classList.remove('fade-in');
+        void element.offsetWidth; // Trigger reflow
+        element.classList.add('fade-in');
+      });
+    }
+
+    // Auto-refresh functionality
+    function startAutoRefresh() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(loadMatchData, REFRESH_INTERVAL);
+    }
+
+    function useLastValidScorecard() {
+      const stored = localStorage.getItem('lastValidScorecard');
+      if (stored) {
+        const savedScorecard = JSON.parse(stored);
+        console.log('Using last valid scorecard from:', savedScorecard.timestamp);
+        updateUI(savedScorecard);
+      } else {
+        handleError(new Error('No valid scorecard data available'));
+      }
+    }
+
+    function handleError(error) {
+      console.error('Error loading data:', error.message);
+      
+      if (!lastValidScorecard) {
+        document.getElementById('loadingIndicator').innerHTML = 
+          `<div class="error">Error loading data: ${error.message}<br>Retrying in 10 seconds...</div>`;
+      }
+      
+      setTimeout(loadMatchData, 10000);
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+      if (refreshTimer) clearInterval(refreshTimer);
+    });
+  </script>
+</body>
+</html>
